@@ -7,26 +7,6 @@ const { v4: uuidv4 } = require("uuid");
 
 const router = express.Router();
 
-// Get all users route
-router.get("/users", (req, res) => {
-  const query = `
-    SELECT 
-      CONCAT(first_name, ' ', last_name) AS fullName, 
-      gender, 
-      state, 
-      photo 
-    FROM users`;
-
-  db.query(query, (err, results) => {
-    if (err) {
-      console.error("Error fetching users:", err);
-      res.status(500).send("Error fetching users");
-    } else {
-      res.json(results);
-    }
-  });
-});
-
 // Configure Multer for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -56,35 +36,49 @@ router.post("/signup", upload.single("photo"), async (req, res) => {
   // Access file data
   const photo = req.file ? req.file.filename : null;
 
-  // Hash the password before storing
   try {
-    const hashedPassword = await bcrypt.hash(password, 10); // Hash password with a salt rounds of 10
+    // Check if the email already exists in the database
+    const emailCheckQuery = `SELECT * FROM users WHERE email = ?`;
+    db.query(emailCheckQuery, [email], async (err, result) => {
+      if (err) {
+        console.error("Error checking email:", err);
+        return res.status(500).send("Error signing up user");
+      }
 
-    const sql = `INSERT INTO users (first_name, last_name, gender, email, phone, state, country, photo, password) 
+      if (result.length > 0) {
+        // Email already exists
+        return res.status(409).send("Email already in use");
+      }
+
+      // Hash the password before storing
+      const hashedPassword = await bcrypt.hash(password, 10); // Hash password with a salt rounds of 10
+
+      const sql = `INSERT INTO users (first_name, last_name, gender, email, phone, state, country, photo, password) 
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
-    db.query(
-      sql,
-      [
-        first_name,
-        last_name,
-        gender,
-        email,
-        phone,
-        state,
-        country,
-        photo,
-        hashedPassword,
-      ],
-      (err, result) => {
-        if (err) {
-          console.error("Error inserting user data:", err);
-          res.status(500).send("Error signing up user");
-        } else {
-          res.redirect("/login");
+      db.query(
+        sql,
+        [
+          first_name,
+          last_name,
+          gender,
+          email,
+          phone,
+          state,
+          country,
+          photo,
+          hashedPassword,
+        ],
+        (err, result) => {
+          if (err) {
+            console.error("Error inserting user data:", err);
+            res.status(500).send("Error signing up user");
+          } else {
+            res.redirect("/login");
+          }
         }
-      }
-    );
+      );
+    });
   } catch (error) {
     console.error("Error hashing password:", error);
     res.status(500).send("Error signing up user");

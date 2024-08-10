@@ -1,7 +1,9 @@
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("signup-form");
 
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault(); // Prevent the form from submitting immediately
+
     const firstName = document.getElementById("first_name").value.trim();
     const lastName = document.getElementById("last_name").value.trim();
     const phone = document.getElementById("phone").value.trim();
@@ -22,7 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const phonePattern = /^\d{11}$/;
     if (!phonePattern.test(phone)) {
       alert("Phone number must be exactly 11 digits.");
-      event.preventDefault(); // Prevent form submission
+      return; // Stop the form submission
     }
 
     // Validate password
@@ -32,7 +34,28 @@ document.addEventListener("DOMContentLoaded", () => {
       alert(
         "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character."
       );
-      event.preventDefault(); // Prevent form submission
+      return; // Stop the form submission
+    }
+
+    // If validations pass, proceed with form submission
+    const formData = new FormData(form);
+
+    try {
+      const response = await fetch("/signup", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (response.status === 409) {
+        alert("Email already in use. Please use a different email.");
+      } else if (response.ok) {
+        window.location.href = "/login"; // Redirect to login if signup is successful
+      } else {
+        alert("Error signing up. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error during form submission:", error);
+      alert("Error signing up. Please try again.");
     }
   });
 

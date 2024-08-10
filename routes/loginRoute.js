@@ -49,31 +49,37 @@ passport.deserializeUser((id, done) => {
 });
 
 // Handle login route
-router.post(
-  "/login",
-  passport.authenticate("local", {
-    failureRedirect: "/login",
-    failureMessage: true,
-  }),
-  (req, res) => {
-    const token = jwt.sign(
-      {
-        id: req.user.id,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "1h" }
-    );
+router.post("/login", (req, res, next) => {
+  passport.authenticate("local", (err, user, info) => {
+    if (err) return next(err);
 
-    // Store token in a cookie with security flags
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+    if (!user) {
+      // Return a JSON response for failed login
+      return res.status(401).json({ error: info.message || "Login failed." });
+    }
+
+    req.logIn(user, (err) => {
+      if (err) return next(err);
+
+      const token = jwt.sign(
+        {
+          id: user.id,
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: "1h" }
+      );
+
+      // Store token in a cookie with security flags
+      res.cookie("token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+      });
+
+      // Send a JSON response with the user’s first name
+      res.json({ redirectTo: "/dashboard", firstName: user.first_name });
     });
-
-    // Send a JSON response with the user’s first name
-    res.json({ redirectTo: "/dashboard", firstName: req.user.first_name });
-  }
-);
+  })(req, res, next);
+});
 
 // Error handler for login
 router.use((err, req, res, next) => {

@@ -4,8 +4,8 @@ document.addEventListener("DOMContentLoaded", () => {
   form.addEventListener("submit", (event) => {
     event.preventDefault();
 
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value.trim();
 
     // Basic client-side validation
     if (!email || !password) {
@@ -26,7 +26,9 @@ document.addEventListener("DOMContentLoaded", () => {
     })
       .then((response) => {
         // Check if the response is JSON
-        if (response.headers.get("content-type")?.includes("application/json")) {
+        const contentType = response.headers.get("content-type");
+
+        if (contentType && contentType.includes("application/json")) {
           return response.json();
         } else {
           return response.text().then((text) => {
@@ -37,12 +39,17 @@ document.addEventListener("DOMContentLoaded", () => {
       })
       .then((data) => {
         if (data.redirectTo) {
+          // Store user's first name in sessionStorage
           sessionStorage.setItem("firstName", data.firstName);
+          // Redirect to the specified URL
           window.location.href = data.redirectTo;
+        } else if (data.error) {
+          // Handle errors returned as JSON
+          alert(data.error);
         }
       })
       .catch((error) => {
-        // Display error message from server
+        // Display error message from server or other errors
         alert(error.message || "An error occurred during login.");
         console.error("Error during login:", error);
       });

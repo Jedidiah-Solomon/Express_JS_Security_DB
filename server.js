@@ -6,15 +6,34 @@ const routes = require("./routes/routes");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
 const path = require("path");
+const MySQLStore = require("express-mysql-session")(session);
+const db = require("./db/db_connection");
 
 const app = express();
 const port = process.env.PORT || 3000;
 const host = process.env.HOST || "127.0.0.1";
 
+// Configure MySQL session store
+const sessionStore = new MySQLStore(
+  {
+    expiration: 3600000, // 1 hour
+    createDatabaseTable: true,
+    schema: {
+      tableName: "users_sessions",
+      columnNames: {
+        session_id: "session_id",
+        expires: "expires",
+        data: "data",
+      },
+    },
+  },
+  db
+);
+
 // Middleware to parse incoming request bodies
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-app.use(cookieParser()); // Add this line
+app.use(cookieParser());
 
 // Middleware for sessions
 app.use(
@@ -22,15 +41,21 @@ app.use(
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: true,
+    store: sessionStore,
+    cookie: {
+      maxAge: 3600000,
+      httpOnly: true,
+      path: "/",
+    },
   })
 );
+
 app.use(passport.initialize());
 app.use(passport.session());
 
 // Middleware to verify JWT token
 const authenticateJWT = (req, res, next) => {
-  const token = req.cookies.token; // Assuming token is stored in a cookie
-
+  const token = req.cookies.token;
   if (token) {
     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
       if (err) return res.sendStatus(403);
